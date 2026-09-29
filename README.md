@@ -1,4 +1,4 @@
-# Hail Loss Projection — Central Europe
+# Hail Loss Projection with NOAA data
 
 Personal actuarial project: modeling and projecting insured losses 
 from hail events, with a focus on catastrophe natural (cat nat) 
