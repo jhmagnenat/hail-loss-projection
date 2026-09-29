@@ -1,55 +1,103 @@
-Exploration de données NOAA
+# Hail Loss Projection — Central Europe
 
+Personal actuarial project: modeling and projecting insured losses 
+from hail events, with a focus on catastrophe natural (cat nat) 
+pricing and risk transfer.
 
-Projet perso pour apprendre à manipuler des données réelles de pertes 
-catastrophe naturelle via Python
+I am currently in 3rd year of Bachelor in Management and aiming for the Master's in Actuarial Science (MScAS) 
+at HEC Lausanne and building this project to develop hands-on 
+expertise in cat nat modeling and loss distributions.
 
-Ce que j'ai fait dans ce premier notebook
+---
 
-J'ai pris des données réelles NOAA (ncei.noaa.gov) (événements météo USA 2023, 
-~75k événements), filtré uniquement la grêle (~11.7k), puis isolé 
-les événements avec des pertes assurées déclarées (850 au final).
+## Level 1 — Data Exploration
 
-Les montants de pertes étaient en texte ("100.00K", "1.00M"), 
-j'ai écrit une fonction pour les convertir en vrais nombres.
+I started with raw NOAA Storm Events data (ncei.noaa.gov) covering 
+all severe weather events across the USA in 2023 (~75k events). 
+I filtered for hail only (~11.7k events), then isolated those with 
+declared insured losses (850 events with real damage figures).
 
-En traçant la distribution dans un histogramme, on voit clairement que la plupart des 
-événements ont des pertes faibles, mais quelques-uns sont énormes 
-(plusieurs millions), ce qui donne une distribution asymétrique à droite. 
-C'est exactement le genre de comportement qu'on attend des risques 
-cat nat (peu d'événements concentrent l'essentiel des pertes).
+Loss amounts were stored as text strings ("100.00K", "1.00M") so 
+I wrote a conversion function to parse them into numeric values.
 
-Plus de la moitié des événements grêle n'ont aucun dégât déclaré. Soit parce qu'il n'y 
-a vraiment rien eu, soit parce que ça n'a pas été reporté.
+Plotting the distribution immediately revealed a strongly right-skewed 
+pattern: most events cause small losses, but a handful cause 
+disproportionately large ones. This is the expected signature of 
+cat nat risk, where a small number of extreme events drive the bulk 
+of total losses.
+
+Worth noting: over half of hail events had no declared damage, either 
+because nothing happened or because it was never reported. A classic 
+reporting bias inherent to the dataset.
+
+### Methodology
+Source: NOAA Storm Events Database 2023 (ncei.noaa.gov)
+Filtering: EVENT_TYPE == 'Hail', DAMAGE_USD > 0
+Conversion: custom parser for K/M/B suffixes into numeric USD
+Visualization: log10-scaled histogram to handle the wide value range
+
+### Key Findings
+850 hail events with real insured losses out of 75,593 total weather events.
+Distribution strongly right-skewed: median ~30K USD, mean ~2.59M USD (86x ratio).
+Max single event: 400M USD.
+Over 57% of hail events reported zero damage (reporting bias).
+
+---
+
+## Level 2 — Loss Distribution Modeling
+
+With clean data in hand, I moved from description to modeling, fitting 
+statistical distributions to answer actuarial questions: what loss 
+amount is exceeded only 1% of the time? How much should an insurer 
+provision annually?
+
+Before choosing a distribution, I ran a Mean Excess Plot to explore 
+the tail structure. The curve forms a bell shape (rises then falls), 
+pointing toward a lognormal rather than a pure Pareto.
+
+I fitted three distributions: lognormal, generalized Pareto, and 
+Weibull. Then I compared them using AIC and a QQ-plot. The lognormal 
+wins on AIC, but the QQ-plot reveals it underestimates extreme events. 
+I kept the Pareto as a stress scenario for capital estimation.
+
+One notable result: the fitted Pareto has shape ξ=1.98, meaning its 
+theoretical mean is mathematically infinite. In practice this means 
+the empirical mean keeps growing as more data is added, and the risk 
+is unboundable in the classical sense. This is precisely the type 
+of tail risk that cat bonds are designed to absorb.
+
+For frequency, I used a Poisson distribution (λ=850 events/year) 
+and computed a pure premium = frequency × mean severity. The 
+theoretical pure premium (714M) is 3x lower than the empirical 
+estimate (2.2Bn), not because the model is wrong, but because 
+a single year of data with such a heavy tail is too unstable to 
+calibrate reliably. That instability is itself the main finding.
+
+### Methodology
+Mean Excess Plot to guide distribution selection.
+Fitted distributions: Lognormal, Generalized Pareto, Weibull (scipy.stats).
+Model selection: AIC and QQ-plot.
+Risk metrics: VaR 95%, 99%, 99.5% via inverse CDF (.ppf).
+Frequency model: Poisson (λ = observed annual event count).
+Pure premium: λ × E[X] per distribution.
+
+### Key Findings
+
+| Model | VaR 99% | Pure Premium | AIC |
+|---|---|---|---|
+| Lognormal ✓ | 11.98M | 714M | 21,346 |
+| Pareto (stress) | 69.04M | undefined (ξ ≥ 1) | 21,403 |
+| Weibull | 8.18M | 440M | 21,574 |
+
+3x divergence between theoretical and empirical pure premium confirms 
+that a single year of data is insufficient to calibrate a heavy-tailed 
+distribution reliably.
+
+Pareto shape ξ=1.98 ≥ 1 implies a theoretically infinite mean, meaning 
+this risk is unboundable without contractual caps or ILS transfer.
+
+---
 
 ## Stack
-Python, pandas, numpy, matplotlib
+Python · pandas · numpy · matplotlib · scipy
 
-## Et après ?
-Maintenant que je sais manipuler les données, j'ai envie d'aller plus 
-loin et d'essayer de fitter une vraie loi statistique sur ces pertes 
-(Pareto/Weibull) pour voir si ça colle avec ce que j'observe.
-
-
-
-2. Loss Distribution Modeling
-
-A partir de là je voulais modéliser mathématiquement pour pouvoir répondre à des vraies questions actuarielles : 
-quelle perte ne sera dépassée que 1% du temps ? Combien un assureur devrait-il provisionner par an ?
-
-Avant de choisir une loi au hasard, j'ai tracé un Mean Excess Plot qui révèle la structure de la queue en calculant, pour chaque seuil u, de combien les pertes le dépassent en moyenne. La courbe forme une cloche (monte puis redescend), ce qui suggère une lognormale plutôt qu'une Pareto pure.
-
-J'ai ensuite fitté trois lois sur les 850 événements. La loi lognormale, la loi de Pareto généralisée et la loi de Weibull. Ensuite j'ai comparé leur qualité via l'AIC et un QQ-plot. La lognormale gagne (AIC le plus bas), mais le QQ-plot révèle qu'elle sous-estime les événements extrêmes. J'ai donc gardé la Pareto comme scénario de stress pour le capital.
-
-Un truc intéressant : la Pareto fittée a un shape de 1.98, ce qui signifie que sa moyenne théorique est mathématiquement infinie. 
-Concrètement, ça veut dire que plus on accumule de données, plus la moyenne empirique continue de grimper. Le risque n'est donc pas bornables au sens classique. C'est  le type de risque que les cat bonds sont conçus à absorber.
-
-Pour la fréquence, j'ai utilisé une loi de Poisson (λ=850 événements/an) 
-et calculé une prime pure = fréquence × sévérité moyenne. La prime théorique (714M) est 3x inférieure à la prime empirique (2.2Mrd). 
-Ce n'est pas parce que le modèle est faux, mais parce qu'une seule année de données avec une queue aussi épaisse est trop instable pour calibrer 
-correctement. C'est la vraie conclusion de ce niveau : il faut plus de données.
-
-## Et après ?
-Le niveau 3 va télécharger plusieurs années (2015-2023) pour construire 
-une vraie série temporelle et voir si la distribution des pertes 
-évolue avec le temps.
