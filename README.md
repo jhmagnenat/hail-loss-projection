@@ -40,7 +40,6 @@ Visualization: log10-scaled histogram to handle the wide value range
 850 hail events with real insured losses out of 75,593 total weather events.
 Distribution strongly right-skewed: median ~30K USD, mean ~2.59M USD (86x ratio).
 Max single event: 400M USD.
-Over 57% of hail events reported zero damage (reporting bias).
 
 ---
 
