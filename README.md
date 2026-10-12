@@ -79,6 +79,7 @@ Model selection: AIC and QQ-plot.
 Risk metrics: VaR 95%, 99%, 99.5% via inverse CDF (.ppf).
 Frequency model: Poisson (λ = observed annual event count).
 Pure premium: λ × E[X] per distribution.
+Modelling assumption: NOAA-reported property damage is used as a proxy for catastrophe loss severity. As insurance coverage and policy conditions are not available, the analysis focuses on economic losses rather than actual insured losses.
 
 ### Key Findings
 
