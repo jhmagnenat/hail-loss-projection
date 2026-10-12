@@ -1,7 +1,8 @@
 # Hail Loss Projection with NOAA data
 
-Personal actuarial project: exploring and modeling reported property damage 
-from hail events using NOAA Storm Events data, with a focus on actuarial loss distributions and catastrophe risk.
+Personal actuarial project: modeling and projecting insured losses 
+from hail events, with a focus on catastrophe natural (cat nat) 
+pricing and risk transfer.
 
 I am currently in 3rd year of Bachelor in Management and aiming for the Master's in Actuarial Science (MScAS) 
 at HEC Lausanne and building this project to develop hands-on 
@@ -36,9 +37,10 @@ Conversion: custom parser for K/M/B suffixes into numeric USD
 Visualization: log10-scaled histogram to handle the wide value range
 
 ### Key Findings
-850 hail events with strictly positive reported property damage out of 75,593 total weather events.
+850 hail events with real insured losses out of 75,593 total weather events.
 Distribution strongly right-skewed: median ~30K USD, mean ~2.59M USD (86x ratio).
 Max single event: 400M USD.
+Over 57% of hail events reported zero damage (reporting bias).
 
 ---
 
@@ -87,7 +89,12 @@ Pure premium: λ × E[X] per distribution.
 | Pareto (stress) | 69.04M | undefined (ξ ≥ 1) | 21,403 |
 | Weibull | 8.18M | 440M | 21,574 |
 
-The substantial difference between modeled and empirical annual aggregate damage highlights the sensitivity of the results to extreme observations and severity-model assumptions. Further validation using multiple years of data would be necessary.
+3x divergence between theoretical and empirical pure premium confirms 
+that a single year of data is insufficient to calibrate a heavy-tailed 
+distribution reliably.
+
+Pareto shape ξ=1.98 ≥ 1 implies a theoretically infinite mean, meaning 
+this risk is unboundable without contractual caps or ILS transfer.
 
 ---
 
