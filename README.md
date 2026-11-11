@@ -1,102 +1,73 @@
 # Hail Loss Projection with NOAA data
 
-Personal actuarial project: modeling and projecting insured losses 
-from hail events, with a focus on catastrophe natural (cat nat) 
-pricing and risk transfer.
+Personal actuarial project: modeling hail losses with a focus on catastrophe natural (cat nat) pricing and risk transfer.
 
-I am currently in 3rd year of Bachelor in Management and aiming for the Master's in Actuarial Science (MScAS) 
-at HEC Lausanne and building this project to develop hands-on 
-expertise in cat nat modeling and loss distributions.
+I am currently in the 3rd year of a Bachelor in Management, aiming for the Master's in Actuarial Science (MScAS) at HEC Lausanne. I am building this project to develop hands-on expertise in cat nat modeling and loss distributions. Each level is a separate notebook, and I add the next one only once I understand the previous one.
 
----
+## How to run
 
-## Level 1 — Data Exploration
+1. Download `StormEvents_details-ftp_v1.0_d2023_c20260323.csv.gz` from the NOAA NCEI Storm Events archive (https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/) and place it in a `data/` folder.
+2. Install the dependencies: `pip install pandas numpy matplotlib scipy jupyterlab`
+3. Open the notebooks in order with `jupyter lab`.
 
-I started with raw NOAA Storm Events data (ncei.noaa.gov) covering 
-all severe weather events across the USA in 2023 (~75k events). 
-I filtered for hail only (~11.7k events), then isolated those with 
-declared insured losses (850 events with real damage figures).
+## Level 1: Data Exploration
 
-Loss amounts were stored as text strings ("100.00K", "1.00M") so 
-I wrote a conversion function to parse them into numeric values.
+I started with raw NOAA Storm Events data covering all severe weather events across the USA in 2023 (75,593 events). I filtered for hail only (11,761 events), then kept those with a positive property damage figure (850 events).
 
-Plotting the distribution immediately revealed a strongly right-skewed 
-pattern: most events cause small losses, but a handful cause 
-disproportionately large ones. This is the expected signature of 
-cat nat risk, where a small number of extreme events drive the bulk 
-of total losses.
+Damage amounts were stored as text ("100.00K", "1.00M"), so I wrote a conversion function to parse them into numeric values.
 
-Worth noting: over half of hail events had no declared damage, either 
-because nothing happened or because it was never reported. A classic 
-reporting bias inherent to the dataset.
+Plotting the distribution on a log scale shows a strongly right-skewed pattern: most events cause small losses, a handful cause very large ones. This is the typical signature of cat nat risk, where a few extreme events drive most of the total loss.
 
-### Methodology
-Source: NOAA Storm Events Database 2023 (ncei.noaa.gov)
-Filtering: EVENT_TYPE == 'Hail', DAMAGE_USD > 0
-Conversion: custom parser for K/M/B suffixes into numeric USD
-Visualization: log10-scaled histogram to handle the wide value range
+Only 850 of the 11,761 hail events (about 7%) carry a positive damage figure. Either nothing was damaged or the damage was never reported, which is a reporting bias inherent to the dataset.
 
-### Key Findings
-850 hail events with real insured losses out of 75,593 total weather events.
-Distribution strongly right-skewed: median ~30K USD, mean ~2.59M USD (86x ratio).
-Max single event: 400M USD.
-
----
-
-## Level 2 — Loss Distribution Modeling
-
-With clean data in hand, I moved from description to modeling, fitting 
-statistical distributions to answer actuarial questions: what loss 
-amount is exceeded only 1% of the time? How much should an insurer 
-provision annually?
-
-Before choosing a distribution, I ran a Mean Excess Plot to explore 
-the tail structure. The curve forms a bell shape (rises then falls), 
-pointing toward a lognormal rather than a pure Pareto.
-
-I fitted three distributions: lognormal, generalized Pareto, and 
-Weibull. Then I compared them using AIC and a QQ-plot. The lognormal 
-wins on AIC, but the QQ-plot reveals it underestimates extreme events. 
-I kept the Pareto as a stress scenario for capital estimation.
-
-One notable result: the fitted Pareto has shape ξ=1.98, meaning its 
-theoretical mean is mathematically infinite. In practice this means 
-the empirical mean keeps growing as more data is added, and the risk 
-is unboundable in the classical sense. This is precisely the type 
-of tail risk that cat bonds are designed to absorb.
-
-For frequency, I used a Poisson distribution (λ=850 events/year) 
-and computed a pure premium = frequency × mean severity. The 
-theoretical pure premium (714M) is 3x lower than the empirical 
-estimate (2.2Bn), not because the model is wrong, but because 
-a single year of data with such a heavy tail is too unstable to 
-calibrate reliably. That instability is itself the main finding.
-
-### Methodology
-Mean Excess Plot to guide distribution selection.
-Fitted distributions: Lognormal, Generalized Pareto, Weibull (scipy.stats).
-Model selection: AIC and QQ-plot.
-Risk metrics: VaR 95%, 99%, 99.5% via inverse CDF (.ppf).
-Frequency model: Poisson (λ = observed annual event count).
-Pure premium: λ × E[X] per distribution.
-Modelling assumption: NOAA-reported property damage is used as a proxy for catastrophe loss severity. As insurance coverage and policy conditions are not available, the analysis focuses on economic losses rather than actual insured losses.
 
 ### Key Findings
 
-| Model | VaR 99% | Pure Premium | AIC |
+- 850 hail events with a positive damage figure.
+- Median loss about 30K USD, mean about 2.59M USD (ratio of 86).
+- Largest single event: 400M USD.
+
+## Level 2: Loss Distribution Modeling
+
+With clean data, I moved from description to modeling. The questions: what loss is exceeded only 1% of the time, and how much should an insurer set aside each year?
+
+I first plotted a Mean Excess Plot to explore the tail. The curve is globally increasing, which signals a heavy tail (lognormal or Pareto type). The drop on the far right is not interpretable, since very few observations lie above the highest thresholds. With only 850 points this plot cannot discriminate between candidate laws, so the choice relies on AIC and a QQ-plot.
+
+I fitted three distributions to the severity of a single event: lognormal, generalized Pareto and Weibull. The lognormal has the lowest AIC. The QQ-plot shows a good fit on the body of the distribution but points drifting above the line in the upper tail, meaning the observed extremes are heavier than the lognormal predicts. I kept the Pareto as a stress scenario.
+
+The fitted Pareto has a shape parameter of 1.98. A generalized Pareto has a finite mean only if the shape is below 1 and a finite variance only if it is below 0.5, so here both are theoretically infinite. This is the kind of tail risk that cat bonds and contractual caps are designed for.
+
+For frequency I used a Poisson distribution with lambda = 850, the number of damaging hail events reported in the USA in 2023. The pure premium is frequency times mean severity. The lognormal gives 714M USD, while the empirical mean gives about 2.2 billion USD. The model and the data disagree by a factor of 3, which tells me a single year of data cannot calibrate a distribution this heavy-tailed.
+
+### Methodology
+
+- Mean Excess Plot for tail exploration.
+- Distributions fitted with `scipy.stats` (lognormal, generalized Pareto, Weibull), loc fixed at 0.
+- Model selection: AIC and QQ-plot.
+- Risk metrics: VaR 95%, 99%, 99.5% on the severity of one event, via the inverse CDF (`.ppf`).
+- Frequency: Poisson, lambda equal to the observed annual count.
+- Pure premium: lambda times the theoretical mean severity.
+
+Modelling assumption: NOAA property damage is used as a proxy for loss severity. Insurance coverage and policy conditions are not available, so the analysis covers reported economic damage rather than insured losses.
+
+### Key Findings
+
+| Model | VaR 99% (per event) | Pure premium | AIC |
 |---|---|---|---|
-| Lognormal ✓ | 11.98M | 714M | 21,346 |
-| Pareto (stress) | 69.04M | undefined (ξ ≥ 1) | 21,403 |
+| Lognormal (selected) | 11.98M | 714M | 21,346 |
+| Pareto (stress) | 69.04M | undefined (infinite mean) | 21,403 |
 | Weibull | 8.18M | 440M | 21,574 |
 
-3x divergence between theoretical and empirical pure premium confirms 
-that a single year of data is insufficient to calibrate a heavy-tailed 
-distribution reliably.
+The lognormal 99.5% VaR is 23.1M, while the Pareto gives about 270M. A small move in the probability level changes the Pareto estimate by a factor of 4, which shows how sensitive tail estimates are to the chosen law.
 
-Pareto shape ξ=1.98 ≥ 1 implies a theoretically infinite mean, meaning 
-this risk is unboundable without contractual caps or ILS transfer.
+## Limitations
 
----
+- One year of data only, and one country.
+- NOAA damage figures are rough estimates, not insurance claims.
+- VaR is computed per event, not on the total annual loss, which is what solvency rules use.
+- Lambda counts only events with a reported damage figure.
+
 
 ## Stack
-Python · pandas · numpy · matplotlib · scipy
+
+Python, pandas, numpy, matplotlib, scipy
