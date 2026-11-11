@@ -18,7 +18,16 @@ Damage amounts were stored as text ("100.00K", "1.00M"), so I wrote a conversion
 
 Plotting the distribution on a log scale shows a strongly right-skewed pattern: most events cause small losses, a handful cause very large ones. This is the typical signature of cat nat risk, where a few extreme events drive most of the total loss.
 
-Only 850 of the 11,761 hail events (about 7%) carry a positive damage figure. Either nothing was damaged or the damage was never reported, which is a reporting bias inherent to the dataset.
+Damage amounts are not always filled in or positive. Out of the 75,593 events in the file, I kept the hail events and then looked at how many carry a usable damage figure:
+
+| Step | Events | Share of hail events |
+|---|---|---|
+| All NOAA events (2023) | 75,593 | |
+| Hail events | 11,761 | 100% |
+| Damage field filled in (including 0) | 4,968 | 42.2% |
+| Strictly positive damage | 850 | 7.2% |
+
+The remaining 6,793 hail events have no damage figure at all. Either nothing was damaged or the damage was never reported, which is a reporting bias inherent to the dataset.
 
 
 ### Key Findings
